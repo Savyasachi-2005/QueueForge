@@ -4,7 +4,7 @@ from uuid import UUID
 from celery.utils.log import get_task_logger
 from sqlalchemy import select
 
-from app.db.session import AsyncSessionLocal
+import app.db.session as db_session
 from app.models.job import Job, JobStatus
 from app.workers.celery_app import celery_app
 
@@ -28,7 +28,11 @@ async def _process_job(job_id: str) -> None:
         logger.error("Invalid job_id: %s", job_id)
         return
 
-    async with AsyncSessionLocal() as session:
+    # Ensure the DB engine/sessionmaker was initialized for this process.
+    if db_session.AsyncSessionLocal is None:
+        db_session.init_db_engine()
+
+    async with db_session.AsyncSessionLocal() as session:  # type: ignore[misc]
         result = await session.execute(select(Job).where(Job.id == job_uuid))
         job = result.scalar_one_or_none()
 

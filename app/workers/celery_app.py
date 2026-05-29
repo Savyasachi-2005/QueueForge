@@ -20,3 +20,15 @@ celery_app.conf.update(
     timezone="UTC",
     enable_utc=True,
 )
+
+
+# Ensure the async DB engine/sessionmaker is initialized in worker child processes
+from celery.signals import worker_process_init
+
+from app.db.session import init_db_engine
+
+
+@worker_process_init.connect
+def on_worker_process_init(**_kwargs):
+    # Called in each worker process after it starts (or after fork).
+    init_db_engine()
